@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Digit Recognizer</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #111827;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 30px;
+        }
+
+        p {
+            color: #cbd5e1;
+        }
+
+        #canvas {
+            background: black;
+            border: 3px solid white;
+            border-radius: 10px;
+            margin-top: 20px;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        button {
+            margin: 10px;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #predict {
+            background: #22c55e;
+            color: white;
+        }
+
+        #clear {
+            background: #ef4444;
+            color: white;
+        }
+
+        #result {
+            margin-top: 25px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        #confidence {
+            margin-top: 10px;
+            font-size: 18px;
+            color: #93c5fd;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <h1>AI Handwritten Digit Recognizer</h1>
+
+    <p>Draw a number from 0 to 9</p>
+
+    <canvas id="canvas" width="280" height="280"></canvas>
+
+    <br>
+
+    <button id="predict">Predict Digit</button>
+
+    <button id="clear">Clear</button>
+
+    <div id="result">
+        Prediction: -
+    </div>
+
+    <div id="confidence">
+        Confidence: -
+    </div>
+
+
+    <script>
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Black background
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Drawing settings
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 12;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        let drawing = false;
+
+
+        function getPosition(event) {
+
+            const rect = canvas.getBoundingClientRect();
+
+            let x;
+            let y;
+
+            if (event.touches) {
+
+                x = event.touches[0].clientX - rect.left;
+                y = event.touches[0].clientY - rect.top;
+
+            } else {
+
+                x = event.clientX - rect.left;
+                y = event.clientY - rect.top;
+
+            }
+
+            return { x, y };
+        }
+
+
+        function startDrawing(event) {
+
+            event.preventDefault();
+
+            drawing = true;
+
+            const pos = getPosition(event);
+
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+
+        function draw(event) {
+
+            if (!drawing) return;
+
+            event.preventDefault();
+
+            const pos = getPosition(event);
+
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+
+        function stopDrawing() {
+
+            drawing = false;
+            ctx.closePath();
+
+        }
+
+
+        // Mouse
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("mouseup", stopDrawing);
+        canvas.addEventListener("mouseleave", stopDrawing);
+
+
+        // Mobile touch
+        canvas.addEventListener("touchstart", startDrawing);
+        canvas.addEventListener("touchmove", draw);
+        canvas.addEventListener("touchend", stopDrawing);
+
+
+        // Clear button
+        document.getElementById("clear").addEventListener("click", function() {
+
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            document.getElementById("result").innerText =
+                "Prediction: -";
+
+            document.getElementById("confidence").innerText =
+                "Confidence: -";
+
+        });
+
+
+        // Predict button
+        document.getElementById("predict").addEventListener("click", async function() {
+
+            const image = canvas.toDataURL("image/png");
+
+            document.getElementById("result").innerText =
+                "Predicting...";
+
+            try {
+
+                const response = await fetch("/predict", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        image: image
+                    })
+
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+
+                    document.getElementById("result").innerText =
+                        "Error";
+
+                    document.getElementById("confidence").innerText =
+                        data.error;
+
+                    return;
+                }
+
+                document.getElementById("result").innerText =
+                    "Prediction: " + data.digit;
+
+                document.getElementById("confidence").innerText =
+                    "Confidence: " + data.confidence + "%";
+
+            }
+
+            catch (error) {
+
+                document.getElementById("result").innerText =
+                    "Something went wrong";
+
+                document.getElementById("confidence").innerText =
+                    error;
+
+            }
+
+        });
+
+    </script>
+
+</body>
+
+</html>
